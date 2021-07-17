@@ -11,24 +11,27 @@ create-tf-backend-bucket:
 
 ###
 
+check-env:
+ifndef ENV
+	$(error Please set ENV=[staging|prod])
+endif
+
 define get-secret
 $(shell gcloud secrets versions access latest --secret=$(1) --project=$(PROJECT_ID))
 endef
 
 ###
 
-ENV=staging
-
-terraform-create-workspace:
+terraform-create-workspace: check-env
 	cd terraform && \
 		terraform workspace new $(ENV)
 
-terraform-init:
+terraform-init: check-env
 	cd terraform && \
 		terraform workspace select $(ENV) && \
 		terraform init
 
-terraform-plan:
+terraform-plan: check-env
 	cd terraform && \
 		terraform workspace select $(ENV) && \
 		terraform plan \
@@ -36,7 +39,7 @@ terraform-plan:
 		-var-file="./environments/$(ENV)/config.tfvars"
 
 TF_ACTION?=plan
-terraform-action:
+terraform-action: check-env
 	cd terraform && \
 		terraform workspace select $(ENV) && \
 		terraform $(TF_ACTION) \
@@ -57,12 +60,12 @@ REMOTE_TAG=gcr.io/$(PROJECT_ID)/$(LOCAL_TAG)
 CONTAINER_NAME=storybooks-api
 DB_NAME=storybooks
 
-ssh:
+ssh: check-env
 	gcloud compute ssh $(SSH_STRING) \
 		--project=$(PROJECT_ID) \
 		--zone=$(ZONE)
 
-ssh-cmd:
+ssh-cmd: check-env
 	@gcloud compute ssh $(SSH_STRING) \
 		--project=$(PROJECT_ID) \
 		--zone=$(ZONE) \
@@ -75,7 +78,7 @@ push:
 	docker tag $(LOCAL_TAG) $(REMOTE_TAG)
 	docker push $(REMOTE_TAG)
 
-deploy:
+deploy: check-env
 	$(MAKE) ssh-cmd CMD='docker-credential-gcr configure-docker'
 	@echo "pulling container image..."
 	$(MAKE) ssh-cmd CMD='docker pull $(REMOTE_TAG)'
